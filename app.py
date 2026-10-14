@@ -40,7 +40,6 @@ st.sidebar.header("Filters")
 selected = st.sidebar.date_input(
     "Date range",
     value=(default_start, default_end),
-    
     min_value=min_date,
     max_value=max_date,
 )
@@ -72,12 +71,48 @@ if filtered_df.empty:
     st.stop()
 
 # ---------------------------------------------------------------
-# 6. Two charts side by side
+# 6. Charts (2 rows of 2)
 # ---------------------------------------------------------------
+
+# ----- Row 1: the two sample charts from the notebook -----
 col1, col2 = st.columns(2)
 
-# Chart 1: Top 10 agencies
+# Chart 1: Top 10 request types
 with col1:
+    top_requests = (
+        filtered_df["service_name"]
+        .value_counts()
+        .head(10)
+        .sort_values()
+    )
+
+    figA, axA = plt.subplots(figsize=(8, 5))
+    top_requests.plot(kind="barh", ax=axA, title="Top 10 Types of 311 Requests")
+    axA.set_xlabel("Number of Requests")
+    axA.set_ylabel("Service Type")
+    figA.tight_layout()
+    st.pyplot(figA)
+
+# Chart 2: Requests over time
+with col2:
+    requests_by_day = (
+        filtered_df
+        .groupby("request_date")
+        .size()
+    )
+
+    figB, axB = plt.subplots(figsize=(8, 5))
+    requests_by_day.plot(kind="line", ax=axB, title="311 Requests Over Time")
+    axB.set_xlabel("Request Date")
+    axB.set_ylabel("Number of Requests")
+    figB.tight_layout()
+    st.pyplot(figB)
+
+# ----- Row 2: the two charts added later (agencies and ZIP codes) -----
+col3, col4 = st.columns(2)
+
+# Chart 3: Top 10 agencies
+with col3:
     top_agencies = (
         filtered_df["agency_responsible"]
         .value_counts()
@@ -92,8 +127,8 @@ with col1:
     fig1.tight_layout()
     st.pyplot(fig1)
 
-# Chart 2: Top 10 ZIP codes
-with col2:
+# Chart 4: Top 10 ZIP codes
+with col4:
     # zipcode often loads as a float (e.g. 94110.0), so clean it into a plain string
     zips = (
         pd.to_numeric(filtered_df["zipcode"], errors="coerce")
