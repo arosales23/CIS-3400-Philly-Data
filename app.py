@@ -23,7 +23,11 @@ df = load_data()
 # 2. Title
 # ---------------------------------------------------------------
 st.title("2025 311 Service Requests Dashboard")
-st.write("Choose a date range in the sidebar to explore 311 requests.")
+st.write(
+    "This dashboard summarizes 311 service requests made in 2025. "
+    "Use the sidebar to choose a start and end date and, optionally, filter by agency. "
+    "All metrics and charts update to match your selections."
+)
 
 # ---------------------------------------------------------------
 # 3. Date controls (these replace START_DATE and END_DATE)
@@ -44,6 +48,13 @@ selected = st.sidebar.date_input(
     max_value=max_date,
 )
 
+# Second control: filter by agency (leave empty to include all agencies)
+agency_options = sorted(df["agency_responsible"].dropna().unique())
+selected_agencies = st.sidebar.multiselect(
+    "Agency (leave empty for all)",
+    options=agency_options,
+)
+
 # date_input returns a tuple of 2 dates once both are picked,
 # but only 1 date while the user is mid-selection.
 if len(selected) != 2:
@@ -61,14 +72,35 @@ filtered_df = df[
     (df["request_date"] <= end_date)
 ].copy()
 
-# ---------------------------------------------------------------
-# 5. Summary metric
-# ---------------------------------------------------------------
-st.metric("Requests in selected period", f"{len(filtered_df):,}")
+# Apply the agency filter only if the user picked at least one agency
+if selected_agencies:
+    filtered_df = filtered_df[filtered_df["agency_responsible"].isin(selected_agencies)]
 
+# ---------------------------------------------------------------
+# 5. Summary metrics
+# ---------------------------------------------------------------
 if filtered_df.empty:
-    st.warning("No requests found for this date range.")
+    st.warning("No requests found for these filters. Try a wider date range or fewer agencies.")
     st.stop()
+
+st.caption(
+    f"Showing requests from {start_date:%b %d, %Y} to {end_date:%b %d, %Y}"
+    + (f" for {len(selected_agencies)} selected agenc{'y' if len(selected_agencies) == 1 else 'ies'}"
+       if selected_agencies else " for all agencies")
+)
+
+total_requests = len(filtered_df)
+num_service_types = filtered_df["service_name"].nunique()
+num_zip_codes = filtered_df["zipcode"].nunique()
+percent_closed = (
+    filtered_df["status"].astype(str).str.lower().eq("closed").mean() * 100
+)
+
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Total requests", f"{total_requests:,}")
+m2.metric("Service types", f"{num_service_types:,}")
+m3.metric("ZIP codes", f"{num_zip_codes:,}")
+m4.metric("Percent closed", f"{percent_closed:.1f}%")
 
 # ---------------------------------------------------------------
 # 6. Charts (2 rows of 2)
